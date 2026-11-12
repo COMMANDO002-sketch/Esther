@@ -1,23 +1,21 @@
-import musicTrack from "../fola.mp3";
+import musicTrack from "./Tml Vibez - Where I'm From (Official Audio) ft. Seyi Vibez.mp3";
 
 /* ============================================================
    AUDIO ENGINE — provided background music + sound effects
-   ------------------------------------------------------------
-   Background music uses the user-provided track. Sound effects
-   are synthesised live with the Web Audio API.
-   Autoplay is attempted on page load; blocked playback retries
-   after a user gesture.
    ============================================================ */
 
 const PREF_MUSIC = "essie:music"; // "on" | "off"
 const PREF_MUTE = "essie:mute"; // "1" | "0"
+const PREF_VOLUME = "essie:volume";
 
 let ctx = null;
 let master = null;
 let sfxBus = null;
 let playing = false;
 let muted = readPref(PREF_MUTE) === "1";
+let volume = readVolume();
 let audioError = "";
+let loading = false;
 let musicElement = null;
 let playAttempt = 0;
 let playPending = false;
@@ -39,12 +37,20 @@ function writePref(key, value) {
     /* ignore */
   }
 }
+function readVolume() {
+  const savedValue = readPref(PREF_VOLUME);
+  if (savedValue === null) return 0.3;
+  const saved = Number(savedValue);
+  return Number.isFinite(saved) && saved >= 0 && saved <= 1 ? saved : 0.3;
+}
 
 function getState() {
   return {
     playing,
     muted,
     audioError,
+    loading,
+    volume,
   };
 }
 function notify() {
@@ -148,27 +154,47 @@ function shimmerNoise(duration) {
 
 function getMusicElement() {
   if (!musicElement) {
-    musicElement = new Audio(musicTrack);
-    musicElement.loop = true;
-    musicElement.preload = "none";
-    musicElement.volume = 0.45;
-    musicElement.muted = muted;
-    musicElement.addEventListener("playing", () => {
+    const track = new Audio();
+    track.src = musicTrack;
+    track.loop = true;
+    track.preload = "metadata";
+    track.volume = volume;
+    track.muted = muted;
+    track.addEventListener("loadstart", () => {
+      loading = true;
+      notify();
+    });
+    track.addEventListener("loadedmetadata", () => {
+      loading = false;
+      notify();
+    });
+    track.addEventListener("canplay", () => {
+      loading = false;
+      notify();
+    });
+    track.addEventListener("playing", () => {
       playing = true;
+      loading = false;
       playPending = false;
       audioError = "";
       notify();
     });
-    musicElement.addEventListener("pause", () => {
+    track.addEventListener("pause", () => {
       playing = false;
       notify();
     });
-    musicElement.addEventListener("error", () => {
+    track.addEventListener("error", () => {
       playPending = false;
       playing = false;
-      audioError = "The music file could not be loaded.";
+      loading = false;
+      audioError =
+        track.error && track.error.code === 4
+          ? "This browser cannot play the music file."
+          : "The music file could not be loaded.";
       notify();
     });
+    track.load();
+    musicElement = track;
   }
   return musicElement;
 }
@@ -180,6 +206,7 @@ function start() {
 
   const attempt = ++playAttempt;
   audioError = "";
+  loading = true;
   playPending = true;
   writePref(PREF_MUSIC, "on");
   notify();
@@ -193,18 +220,20 @@ function start() {
     if (attempt !== playAttempt) return;
     playPending = false;
     playing = !track.paused;
+    loading = false;
     if (playing) audioError = "";
     notify();
   }).catch((error) => {
     if (attempt !== playAttempt) return;
     playPending = false;
     playing = false;
+    loading = false;
     audioError =
-      error.name === "NotAllowedError"
-        ? "Tap or click anywhere to start the music."
-        : error.name === "AbortError"
+      error && error.name === "NotAllowedError"
+        ? "Press Play to allow music in this browser."
+        : error && error.name === "AbortError"
           ? ""
-          : `Music could not start: ${error.message}`;
+          : `Music could not start${error && error.message ? `: ${error.message}` : "."}`;
     notify();
   });
   return true;
@@ -213,6 +242,7 @@ function start() {
 function pause() {
   playAttempt += 1;
   playPending = false;
+  loading = false;
   if (musicElement) musicElement.pause();
   playing = false;
   writePref(PREF_MUSIC, "off");
@@ -220,8 +250,16 @@ function pause() {
 }
 
 function toggle() {
-  if (playing) pause();
+  if (playing || playPending) pause();
   else start();
+}
+
+function setVolume(nextVolume) {
+  volume = Math.max(0, Math.min(1, Number(nextVolume)));
+  if (!Number.isFinite(volume)) volume = 0.3;
+  writePref(PREF_VOLUME, String(volume));
+  if (musicElement) musicElement.volume = volume;
+  notify();
 }
 
 function setMuted(nextMuted) {
@@ -242,12 +280,6 @@ function setMuted(nextMuted) {
 
 function toggleMute() {
   setMuted(!muted);
-}
-
-/* Called on the first user gesture: starts the music
-   unless the visitor previously paused it. */
-function autoStart() {
-  start();
 }
 
 /* ---------- sound effects ---------- */
@@ -287,15 +319,6 @@ function playSparkle() {
   ready(() => chime([1567.98, 1975.53, 2637.02, 3135.96], 0.07, 0.5, 0.08, "sine"));
 }
 
-function playHeart() {
-  // soft double heartbeat for the last surprise
-  ready(() => {
-    const now = ctx.currentTime + 0.02;
-    tone(82, now, 0.5, 0.3, "sine", sfxBus);
-    tone(66, now + 0.34, 0.6, 0.24, "sine", sfxBus);
-  });
-}
-
 function playClick() {
   ready(() => chime([880], 0, 0.16, 0.05, "sine"));
 }
@@ -307,12 +330,11 @@ const audio = {
   start,
   pause,
   toggle,
+  setVolume,
   setMuted,
   toggleMute,
-  autoStart,
   playMagic,
   playSparkle,
-  playHeart,
   playClick,
   get isMuted() {
     return readPref(PREF_MUTE) === "1";

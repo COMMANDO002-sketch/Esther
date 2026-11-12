@@ -1,15 +1,41 @@
-# Esther's birthday surprise
+# Shittu Esther — Premium Birthday Experience
 
-This React app is built with Vite. Its shared design is in `css/style.css`,
-React-specific layout overrides and screen polish live in `src/screens.css`, and
-the cinematic animation upgrade (transitions, reveals, envelope scene, music dock)
-is layered on in `css/upgrade.css`; the gallery photos are in `images/`.
+A cinematic, friendship-themed birthday website for **SHITTU ESTHER (19 & Shining)**,
+crafted by **COMMANDO**. Built with React + Vite.
 
-The experience includes the animated gift opening, an interactive four-photo
-gallery, the birthday letter, and an optional final surprise. Music and sound
-effects are synthesized in-browser with the Web Audio API, so no external audio
-track or extra animation library is required. Audio starts only after a visitor
-uses the music control or opens the gift.
+## What's inside
+
+- **Five-second cinematic intro** — full-screen photograph, soft pink overlay,
+  floating stars/sparkles, skip button and an *Enter Celebration* button.
+  Plays once per browsing session (refresh brings it back).
+- **Sticky navigation** — Home, About Esther, Gallery, Memories, Birthday
+  Wishes, Surprise, with smooth scrolling and an animated mobile menu.
+- **Sections** — hero, *Meet Esther*, masonry gallery with lightbox, memories
+  timeline, celebration timer (counts down to the next 11 November), birthday
+  cake with a *Make a Wish* interaction, wishes wall, surprise gift box and a
+  canvas fireworks celebration.
+- **Music** — the existing track (`src/Tml Vibez - Where I'm From … mp3`) is
+  attempted on entry at 30% volume, loops continuously through one persistent
+  audio engine, and is controlled by the floating player. If autoplay is
+  blocked, the player offers a *Play Music* button. Music, mute, and volume
+  preferences persist across visits.
+- **Visual details** — a flower cursor with a subtle sparkle trail on desktop,
+  soft floating petals, butterflies, bubbles, and motion-aware reveals.
+- **Wishes wall** — validated form with loading/success/error states, a
+  honeypot + rate limit for basic spam control, and cards stored in
+  `localStorage` (browser-local only — clearly labelled in the UI).
+
+## Structure
+
+```
+index.html            page shell, fonts, metadata
+css/style.css         the entire design system (pink · white · champagne gold)
+images/               photographs of Esther
+src/App.jsx           section composition + intro/session logic
+src/audio.js          singleton music + sound-effect engine
+src/hooks.js          reveal, locks, storage and scroll helpers
+src/components/       one component per section / interaction
+```
 
 ## Run locally
 
@@ -18,4 +44,4 @@ npm install
 npm run dev
 ```
 
-Create a production build with `npm run build`.
+Create a production build with `npm run build` (output in `dist/`).
